@@ -11,9 +11,24 @@ from parser import parse
 def format_dict(d):
     return ' '.join([f'{k}:{v}' for k,v in d.items()])
 
+
+results_path = Path('results')
+results_path.mkdir(parents=True, exist_ok=True)
+
+
+
 @click.command()
 @click.argument('id')
-def main(id: str):
+def _parse_place(id: str):
+    items = parse_place(id=id)
+    short_lines = [f'{item["calendarDate"]}: {item["localPriceFormatted"]} bookable:{item["bookable"]}' for item in items]
+    short_content = '\n'.join(short_lines)
+    print(short_content)
+    (results_path / f'{id}_short.txt').write_text(short_content)
+    return items
+
+
+def parse_place(id: str):
     headers = '''Host: www.airbnb.ru
 User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0
 Accept: */*
@@ -31,10 +46,7 @@ Cookie: bev=1601283992_NjhkZjdjZWE1ZmI2; cdn_exp_f699727e78669251b=control; tzo=
 Pragma: no-cache
 Cache-Control: no-cache
 TE: Trailers'''
-    results_path = Path('results')
-    results_path.mkdir(parents=True, exist_ok=True)
 
-    id = '29255112'
     uri = 'https://www.airbnb.ru/api/v3/PdpAvailabilityCalendar?operationName=PdpAvailabilityCalendar&locale=ru&currency=RUB&variables={"request":{"count":12,"listingId":"%s","month":10,"year":2020}}&extensions={"persistedQuery":{"version":1,"sha256Hash":"b94ab2c7e743e30b3d0bc92981a55fff22a05b20bcc9bcc25ca075cc95b42aac"}}&_cb=ssjuv319oa44y'
     uri = uri % id
     r = requests.get(uri, headers=email.message_from_string(headers))
@@ -43,13 +55,9 @@ TE: Trailers'''
     (results_path / f'{id}_raw.json').write_text(r.text)
 
     items = list(parse(r.text))
-    (results_path / f'{id}_detailed.txt').write_text(json.dumps(items, indent=2))
+    return items
 
-    short_lines = [f'{item["calendarDate"]}: {item["localPriceFormatted"]} bookable:{item["bookable"]}' for item in items]
-    short_content = '\n'.join(short_lines)
-    print(short_content)
-    (results_path / f'{id}_short.txt').write_text(short_content)
 
 
 if __name__ == '__main__':
-    main()
+    _parse_place()

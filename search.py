@@ -1,10 +1,11 @@
-import requests
-import json
+import csv
+import datetime
+from itertools import tee
 
 import requests
 import email
 
-from parser import parse
+from place import parse_place
 
 
 def format_dict(d):
@@ -29,8 +30,58 @@ Pragma: no-cache
 Cache-Control: no-cache
 TE: Trailers'''
 
-uri = 'https://www.airbnb.ru/api/v3/ExploreSearch?operationName=ExploreSearch&locale=ru&currency=RUB&_cb=164980x1wh7384&variables={"request":{"metadataOnly":false,"version":"1.7.9","itemsPerGrid":20,"adults":1,"refinementPaths":["/homes"],"source":"structured_search_input_header","searchType":"pagination","gpsLat":"43.6701285","gpsLng":"40.2610513","tabId":"home_tab","placeId":"ChIJG7tVEL119kARoolZ6QfnDrI","federatedSearchSessionId":"7565e76e-1e9f-420a-b3cd-45deba985924","mapToggle":false,"itemsOffset":20,"sectionOffset":3,"query":"Эсто-Садок, Краснодарский край","cdnCacheSafe":false,"simpleSearchTreatment":"simple_search_only","treatmentFlags":["simple_search_1_1","simple_search_desktop_v3_full_bleed","flexible_dates_options_extend_one_three_five_days"],"screenSize":"large"}}&extensions={"persistedQuery":{"version":1,"sha256Hash":"aa7c5e53ca607108c7e8cf6052853bfd8ecec3edf21c6578ee2256e8ed108432"}}'
-r = requests.get(uri, headers=email.message_from_string(headers))
-r.raise_for_status()
-with open(f'search.json', 'w') as fp:
-    fp.write(r.text)
+def get_places(place_id: str):
+    variables = '''{"request":{"metadataOnly":false,"version":"1.7.9","itemsPerGrid":55,"adults":1,"refinementPaths":["/homes"],"source":"structured_search_input_header",
+"searchType":"pagination","tabId":"home_tab","placeId":"%(placeId)s",
+"federatedSearchSessionId":"7565e76e-1e9f-420a-b3cd-45deba985924","mapToggle":false,"itemsOffset":20,"sectionOffset":3,
+"query":"Эсто-Садок, Краснодарский край","cdnCacheSafe":false,"simpleSearchTreatment":"simple_search_only",
+"treatmentFlags":["simple_search_1_1","simple_search_desktop_v3_full_bleed","flexible_dates_options_extend_one_three_five_days"],"screenSize":"large"}}''' % dict(placeId=place_id)
+
+    extensions = '{"persistedQuery":{"version":1,"sha256Hash":"aa7c5e53ca607108c7e8cf6052853bfd8ecec3edf21c6578ee2256e8ed108432"}}'
+    uri = f'https://www.airbnb.ru/api/v3/ExploreSearch?operationName=ExploreSearch&locale=ru&currency=RUB&_cb=164980x1wh7384&variables={variables}&extensions={extensions}'
+    r = requests.get(uri, headers=email.message_from_string(headers))
+    r.raise_for_status()
+    with open(f'search.json', 'w') as fp:
+        fp.write(r.text)
+
+    items = r.json()['data']['dora']['exploreV3']['sections'][0]['items']
+    print(f'found {len(items)} places')
+    for item in items[:3]:
+        id = item['listing']['id']
+        url = f'https://www.airbnb.ru/rooms/{id}'
+        print(url, item['listing']['name'])
+        yield id
+
+        items = parse_place(id=id)
+        prices = ' '.join([f'{item["localPriceFormatted"]}' for item in items])
+        print(prices)
+
+
+def get_prices(places):
+    for place in places:
+        yield parse_place(place)
+
+
+def dates(days):
+    base = datetime.date.today()
+    dates = [base + datetime.timedelta(days=x) for x in range(days)]
+    return list(map(str, dates))
+
+
+def dump(places, prices):
+    with open('data.csv', 'w', newline='') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=['url'] + dates(30), extrasaction='ignore')
+        writer.writeheader()
+        for id, pr in zip(places, prices):
+            data = dict(url=f'https://www.airbnb.ru/rooms/{id}')
+            data.update({item["calendarDate"]: item["localPriceFormatted"] for item in pr})
+            writer.writerow(data)
+
+
+if __name__ == '__main__':
+    # placeId = 'ChIJ7WVKx4w3lkYR_46Eqz9nx20'  # спб
+    # placeId = 'ChIJXSFYKsZbs0YRSO_CVGuYeyA'  # пересалвль залесский
+    places = get_places(place_id='ChIJ7WVKx4w3lkYR_46Eqz9nx20')
+    places1, places2 = tee(places)
+    prices = get_prices(places=places1)
+    dump(places2, prices)
