@@ -1,16 +1,12 @@
 import csv
-import datetime
-from itertools import tee
+from datetime import date
+from itertools import tee, islice
 
 import requests
 import email
 
 from place import parse_place
-
-
-def format_dict(d):
-    return ' '.join([f'{k}:{v}' for k,v in d.items()])
-
+from utils import dates
 
 headers = '''Host: www.airbnb.ru
 User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0
@@ -30,10 +26,11 @@ Pragma: no-cache
 Cache-Control: no-cache
 TE: Trailers'''
 
+
 def get_places(place_id: str):
     variables = '''{"request":{"metadataOnly":false,"version":"1.7.9","itemsPerGrid":55,"adults":1,"refinementPaths":["/homes"],"source":"structured_search_input_header",
 "searchType":"pagination","tabId":"home_tab","placeId":"%(placeId)s",
-"federatedSearchSessionId":"7565e76e-1e9f-420a-b3cd-45deba985924","mapToggle":false,"itemsOffset":20,"sectionOffset":3,
+"federatedSearchSessionId":"6565e76e-1e9f-420a-b3cd-45deba985924","mapToggle":false,"itemsOffset":20,"sectionOffset":3,
 "query":"Эсто-Садок, Краснодарский край","cdnCacheSafe":false,"simpleSearchTreatment":"simple_search_only",
 "treatmentFlags":["simple_search_1_1","simple_search_desktop_v3_full_bleed","flexible_dates_options_extend_one_three_five_days"],"screenSize":"large"}}''' % dict(placeId=place_id)
 
@@ -46,15 +43,95 @@ def get_places(place_id: str):
 
     items = r.json()['data']['dora']['exploreV3']['sections'][0]['items']
     print(f'found {len(items)} places')
-    for item in items[:3]:
+    for item in items:
         id = item['listing']['id']
         url = f'https://www.airbnb.ru/rooms/{id}'
         print(url, item['listing']['name'])
-        yield id
+        yield item['listing']['id']
 
-        items = parse_place(id=id)
-        prices = ' '.join([f'{item["localPriceFormatted"]}' for item in items])
-        print(prices)
+'''
+'listing' = {dict: 79} {'__typename': 'DoraListing', 'amenityIds': [131, 4, 8, 12, 77, 85, 23, 89, 90, 91, 93, 30, 94, 96, 33, 611, 35, 36, 37, 38, 39, 104, 40, 41, 44, 45, 46, 47, 627], 'avgRating': 4.83, 'badges': ['СУПЕРХОЗЯИН'], 'bathroomLabel': '1 ванная', 'bathrooms': 1, '
+ '__typename' = {str} 'DoraListing'
+ 'amenityIds' = {list: 29} [131, 4, 8, 12, 77, 85, 23, 89, 90, 91, 93, 30, 94, 96, 33, 611, 35, 36, 37, 38, 39, 104, 40, 41, 44, 45, 46, 47, 627]
+ 'avgRating' = {float} 4.83
+ 'badges' = {list: 1} ['СУПЕРХОЗЯИН']
+ 'bathroomLabel' = {str} '1 ванная'
+ 'bathrooms' = {int} 1
+ 'bedLabel' = {str} '1 кровать'
+ 'bedroomLabel' = {str} '1 спальня'
+ 'bedrooms' = {int} 1
+ 'beds' = {int} 1
+ 'cancellationPolicyTitle' = {NoneType} None
+ 'city' = {str} 'Sankt-Peterburg'
+ 'contextualPictures' = {list: 24} [{'__typename': 'DoraPicture', 'caption': None, 'id': '459920068', 'picture': 'https://a0.muscache.com/im/pictures/624aacbc-90e5-43f5-bb61-06ff08de565d.jpg?im_w=720'}, {'__typename': 'DoraPicture', 'caption': {'__typename': 'DoraKickerContent', 'kickerBadg
+ 'detailedRating' = {NoneType} None
+ 'formattedBadges' = {list: 1} [{'__typename': 'DoraFormattedBadge', 'backgroundColor': 'rgba(255, 255, 255, 0.95)', 'borderColor': 'rgba(0, 0, 0, 0.2)', 'text': 'СУПЕРХОЗЯИН', 'textColor': '#222222'}]
+ 'guestLabel' = {str} '2 гостя'
+ 'homeDetails' = {list: 4} [{'__typename': 'DoraBasicListItem', 'title': '2 гостя'}, {'__typename': 'DoraBasicListItem', 'title': '1 спальня'}, {'__typename': 'DoraBasicListItem', 'title': '1 кровать'}, {'__typename': 'DoraBasicListItem', 'title': '1 ванная'}]
+ 'hostLanguages' = {list: 1} ['en']
+ 'hostThumbnailUrl' = {str} 'https://a0.muscache.com/im/pictures/user/e46fe1be-b3c7-4f90-9498-2f899ff93d45.jpg?aki_policy=profile_x_medium'
+ 'hostThumbnailUrlSmall' = {str} 'https://a0.muscache.com/im/pictures/user/e46fe1be-b3c7-4f90-9498-2f899ff93d45.jpg?aki_policy=profile_small'
+ 'hotelRoomCountLabel' = {NoneType} None
+ 'hotelRoomTypeCountLabel' = {NoneType} None
+ 'id' = {str} '23059416'
+ 'isBusinessTravelReady' = {bool} False
+ 'isFullyRefundable' = {NoneType} None
+ 'isHostHighlyRated' = {NoneType} None
+ 'isNewListing' = {bool} False
+ 'isRebookable' = {NoneType} None
+ 'isSuperhost' = {bool} True
+ 'kickerContent' = {dict: 4} {'__typename': 'DoraKickerContent', 'kickerBadge': None, 'messages': ['Квартира целиком в г. Парадный Невский'], 'textColor': None}
+ 'lat' = {float} 59.94553
+ 'lng' = {float} 30.35599
+ 'localizedCity' = {str} 'Sankt-Peterburg'
+ 'localizedNeighborhood' = {str} 'Парадный Невский'
+ 'locationContext' = {NoneType} None
+ 'mainSectionMessage' = {NoneType} None
+ 'mainSectionMessages' = {list: 0} []
+ 'overview' = {list: 2} [{'__typename': 'DoraBasicListItem', 'title': 'Квартира целиком'}, {'__typename': 'DoraBasicListItem', 'title': 'Парадный Невский'}]
+ 'name' = {str} 'Уютное гнездышко для двоих на Чернышевской'
+ 'neighborhood' = {str} 'Upper Nevsky'
+ 'neighborhoodOverview' = {NoneType} None
+ 'pdpDisplayExtensions' = {list: 0} []
+ 'pdpType' = {str} 'MARKETPLACE'
+ 'pdpUrlType' = {str} 'ROOMS'
+ 'personCapacity' = {int} 2
+ 'picture' = {NoneType} None
+ 'pictureCount' = {int} 24
+ 'pictureUrl' = {str} 'https://a0.muscache.com/im/pictures/624aacbc-90e5-43f5-bb61-06ff08de565d.jpg?im_w=720'
+ 'pictureUrls' = {list: 0} []
+ 'previewAmenities' = {str} 'Wi-Fi,Кухня,Отопление,Стиральная машина'
+ 'previewAmenityNames' = {list: 4} ['Wi-Fi', 'Кухня', 'Отопление', 'Стиральная машина']
+ 'previewEncodedPng' = {NoneType} None
+ 'previewTagNames' = {NoneType} None
+ 'previewTags' = {list: 0} []
+ 'propertyType' = {NoneType} None
+ 'propertyTypeId' = {str} '1'
+ 'publicAddress' = {str} 'Sankt-Peterburg, Россия'
+ 'reviews' = {list: 0} []
+ 'reviewsCount' = {int} 94
+ 'roomAndPropertyType' = {str} 'Квартира целиком'
+ 'roomType' = {str} 'Жилье целиком'
+ 'roomTypeCategory' = {str} 'entire_home'
+ 'scrimColor' = {NoneType} None
+ 'searchPoiContext' = {NoneType} None
+ 'seoNeighborhoodOverview' = {NoneType} None
+ 'seoReviews' = {list: 0} []
+ 'seoSpace' = {NoneType} None
+ 'seoSummary' = {NoneType} None
+ 'showPhotoSwipeIndicator' = {bool} True
+ 'showStructuredName' = {bool} False
+ 'space' = {NoneType} None
+ 'spaceType' = {str} 'Квартира целиком'
+ 'starRating' = {int} 5
+ 'starRatingColor' = {str} '#008489'
+ 'summary' = {NoneType} None
+ 'tags' = {NoneType} None
+ 'tierId' = {int} 0
+ 'user' = {dict: 9} {'__typename': 'DoraUser', 'createdAt': None, 'firstName': ' ', 'hasProfilePic': True, 'id': '170405674', 'isSuperhost': True, 'pictureUrl': 'https://a0.muscache.com/im/pictures/user/e46fe1be-b3c7-4f90-9498-2f899ff93d45.jpg?aki_policy=profile_x_medium', 's
+ 'wideKickerContent' = {dict: 4} {'__typename': 'DoraKickerContent', 'kickerBadge': None, 'messages': ['Квартира целиком'], 'textColor': '#767676'}
+ __len__ = {int} 79
+ '''
 
 
 def get_prices(places):
@@ -62,26 +139,40 @@ def get_prices(places):
         yield parse_place(place)
 
 
-def dates(days):
-    base = datetime.date.today()
-    dates = [base + datetime.timedelta(days=x) for x in range(days)]
-    return list(map(str, dates))
-
-
-def dump(places, prices):
+def dump(places, prices, count, start_date, days):
     with open('data.csv', 'w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=['url'] + dates(30), extrasaction='ignore')
+        fieldnames = ['url', 'min_price', 'max_price'] + dates(start_date=start_date, days=days)
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames, extrasaction='ignore')
         writer.writeheader()
-        for id, pr in zip(places, prices):
+        for id, pr in islice(zip(places, prices), count):
             data = dict(url=f'https://www.airbnb.ru/rooms/{id}')
-            data.update({item["calendarDate"]: item["localPriceFormatted"] for item in pr})
+            date_price_map = {item["calendarDate"]: item["localPriceFormatted"] if item['bookable'] else 0 for item in pr}
+            prices = map(int, date_price_map.values())
+            prices = list(filter(None, prices))
+            data['min_price'] = min(prices) if prices else None
+            data['max_price'] = max(prices) if prices else None
+            data.update(date_price_map)
             writer.writerow(data)
-
+            csvfile.flush()
+'''
+item
+001 = {dict: 8} {'calendarDate': '2020-11-08', 'available': False, 'maxNights': 1125, 'minNights': 1, 'availableForCheckin': False, 'availableForCheckout': True, 'bookable': False, 'localPriceFormatted': '1500'}
+ 'calendarDate' = {str} '2020-11-08'
+ 'available' = {bool} False
+ 'maxNights' = {int} 1125
+ 'minNights' = {int} 1
+ 'availableForCheckin' = {bool} False
+ 'availableForCheckout' = {bool} True
+ 'bookable' = {bool} False
+ 'localPriceFormatted' = {str} '1500'
+ __len__ = {int} 8
+'''
 
 if __name__ == '__main__':
-    # placeId = 'ChIJ7WVKx4w3lkYR_46Eqz9nx20'  # спб
-    # placeId = 'ChIJXSFYKsZbs0YRSO_CVGuYeyA'  # пересалвль залесский
-    places = get_places(place_id='ChIJ7WVKx4w3lkYR_46Eqz9nx20')
+    place_id = 'ChIJgxy2QfxivUYRAJdzzhbvAAE'  # ленобласть
+    # place_id = 'ChIJ7WVKx4w3lkYR_46Eqz9nx20'  # спб
+    # place_id = 'ChIJXSFYKsZbs0YRSO_CVGuYeyA'  # пересалвль залесский
+    places = get_places(place_id=place_id)
     places1, places2 = tee(places)
     prices = get_prices(places=places1)
-    dump(places2, prices)
+    dump(places2, prices, count=4, start_date='2020-11-08', days=365)

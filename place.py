@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from pathlib import Path
 
 import click
@@ -6,10 +7,6 @@ import requests
 import email
 
 from parser import parse
-
-
-def format_dict(d):
-    return ' '.join([f'{k}:{v}' for k,v in d.items()])
 
 
 results_path = Path('results')
@@ -47,8 +44,10 @@ Pragma: no-cache
 Cache-Control: no-cache
 TE: Trailers'''
 
-    uri = 'https://www.airbnb.ru/api/v3/PdpAvailabilityCalendar?operationName=PdpAvailabilityCalendar&locale=ru&currency=RUB&variables={"request":{"count":12,"listingId":"%s","month":10,"year":2020}}&extensions={"persistedQuery":{"version":1,"sha256Hash":"b94ab2c7e743e30b3d0bc92981a55fff22a05b20bcc9bcc25ca075cc95b42aac"}}&_cb=ssjuv319oa44y'
-    uri = uri % id
+    today = datetime.today()
+    extensions = '{"persistedQuery":{"version":1,"sha256Hash":"b94ab2c7e743e30b3d0bc92981a55fff22a05b20bcc9bcc25ca075cc95b42aac"}}'
+    variables = '{"request":{"count":12,"listingId":"%(listingId)s","month":%(month)s,"year":%(year)s}}' % dict(listingId=id, month=today.month, year=today.year)
+    uri = f'https://www.airbnb.ru/api/v3/PdpAvailabilityCalendar?operationName=PdpAvailabilityCalendar&locale=ru&currency=RUB&variables={variables}&extensions={extensions}&_cb=ssjuv319oa44y'
     r = requests.get(uri, headers=email.message_from_string(headers))
     r.raise_for_status()
 

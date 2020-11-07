@@ -14,7 +14,8 @@ def parse(text):
             if day['__typename'] != 'MerlinCalendarDayPrice':
                 print(f'Unexpected {day}')
             del day['__typename']
-            day['localPriceFormatted'] = re.sub(pattern='\D', repl='', string=day['localPriceFormatted'])
+            if day['localPriceFormatted'] is not None:
+                day['localPriceFormatted'] = re.sub(pattern='\D', repl='', string=day['localPriceFormatted'])
             yield day
 
 
