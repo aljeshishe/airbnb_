@@ -1,0 +1,22 @@
+{
+  "template": "https://github.com/wemake-services/wemake-python-package",
+  "commit": "5fe13ee2646d5cf38736bacfa8f9dbbfac092efb",
+  "checkout": null,
+  "context": {
+    "cookiecutter": {
+      "project_name": "airbnb",
+      "organization": "aljeshishe",
+      "project_description": "This is how python package should look like!",
+      "license": "MIT",
+      "_extensions": [
+        "jinja2_git.GitExtension"
+      ],
+      "_copy_without_render": [
+        ".venv",
+        "docs/_build"
+      ],
+      "_template": "https://github.com/wemake-services/wemake-python-package"
+    }
+  },
+  "directory": null
+}
