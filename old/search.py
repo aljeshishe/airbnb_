@@ -1,11 +1,10 @@
 import csv
-from datetime import date
 from itertools import tee, islice
 
 import requests
 import email
 
-from place import parse_place
+from old.place import parse_place
 from utils import dates
 
 headers = '''Host: www.airbnb.ru
@@ -38,7 +37,7 @@ def get_places(place_id: str):
     uri = f'https://www.airbnb.ru/api/v3/ExploreSearch?operationName=ExploreSearch&locale=ru&currency=RUB&_cb=164980x1wh7384&variables={variables}&extensions={extensions}'
     r = requests.get(uri, headers=email.message_from_string(headers))
     r.raise_for_status()
-    with open(f'search.json', 'w') as fp:
+    with open(f'../search.json', 'w') as fp:
         fp.write(r.text)
 
     items = r.json()['data']['dora']['exploreV3']['sections'][0]['items']
@@ -175,4 +174,4 @@ if __name__ == '__main__':
     places = get_places(place_id=place_id)
     places1, places2 = tee(places)
     prices = get_prices(places=places1)
-    dump(places2, prices, count=4, start_date='2020-11-08', days=365)
+    dump(places2, prices, count=4, start_date='2022-11-08', days=365)
